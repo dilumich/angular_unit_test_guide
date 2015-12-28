@@ -112,7 +112,8 @@ let element: Jquery = $(compile('<div id="adc">')(scope));
 // doesn't work
 $($('#abc');
 
-setFixtures(element);
+// appendSetFixtures is needed when you need to set multiple fixtures at the same time.
+appendSetFixtures(element);
 
 // works now 
 $($('#abc');
