@@ -11,6 +11,8 @@ Here is a list of main frameworks or tools used for unit testing purposes.
 - [ngMock](https://docs.angularjs.org/api/ngMock): The ngMock module provides support to inject and mock Angular services into unit tests. In addition, ngMock also extends various core ng services such that they can be inspected and controlled in a synchronous manner within test code.
 - [Jasmine-jquery](https://github.com/velesin/jasmine-jquery): jasmine-jquery provides two extensions for the Jasmine JavaScript Testing Framework: a set of custom matchers for jQuery framework and an API for handling HTML, CSS, and JSON fixtures in your specs.
 - [karma-ng-html2js-preprocessor](https://github.com/karma-runner/karma-ng-html2js-preprocessor): This preprocessor converts HTML files into JS strings and generates Angular modules. These modules, when loaded, puts these HTML files into the $templateCache and therefore Angular won't try to fetch them from the server.
+- [istanbul](https://github.com/gotwarlost/istanbul): istanbul is a JS code coverage tool that computes statement, line, function and branch coverage with module loader hooks to transparently add coverage when running tests. Supports all JS coverage use cases including unit tests, server side functional tests and browser tests. Built for scale.
+- [remap-istanbul](https://github.com/SitePen/remap-istanbul) remap-istanbul is a tool for remapping Istanbul coverage via Source Maps and it can be used to remap js coverage to ts coverage.
 
 Basically, Jasmine provides a basic unit testing framework and Karma executes test code in the configured environment. ngMock provides a way to load AngularJS modules, inject dependencies, and mock dependencies. Jasmine-jquery has additional jquery testing framework to help us work with Jquery. karma-ng-html2js-preprocessor is a tool to pre-load all templates which avoids runtime HTTP requests.
 
@@ -22,7 +24,7 @@ Some other tools are also used for additional functionalities but they are not i
 'build-test' and 'test' are two tasks defined in px-uilibs/gulpfile.js. 
 
 1. `gulp build-test` builds all typescript source code and test code
-2. `gulp test` builds all first and runs all unit tests
+2. `gulp test` builds all source code first and runs all unit tests
 
 ### Testing Environment Configurations
 Testing environment configuration is defined in px-uilibs/test/test-unit.conf.js file. See comments in this file for more infornmation.
@@ -37,6 +39,19 @@ Testing environment configuration is defined in px-uilibs/test/test-unit.conf.js
 2. click 'debug' button in the opened browser
 3. open developer tools
 4. refresh browser to rerun tests
+
+## Test Coverage
+### Generate code coverage
+1. run `gulp test-coverage` (it builds and runs all unit tests and generates covearge report).
+2. open px-uilibs/coverage/index.html in browser
+
+### How it works
+1. karma invoke istanbul coverage tool to generate coverage info in .json format (px-uilibs/coverage/coverage-final.json)
+2. remap-istanbul remaps javascript coverage info to typescript coverage info in .json format (px-uilibs/coverage/coverage.json)
+3. istanbul generates coverage report in html using remapped coverage info.
+
+### Archieve 100% coverage
+Ideally, all px-uilibs code should be tested. However, Some branches in JS code are typically hard, if not impossible to test. Use istanbul ignore syntax to enforce istanbul to ignore these branches. (see [this](https://github.com/gotwarlost/istanbul/blob/master/ignoring-code-for-coverage.md) for details)
 
 
 ## Testing Guide
@@ -142,7 +157,22 @@ Use `triggerHandler` method to trigger event programmatically
 element.triggerHandler('eventName');
 ```
 
-### Work with `$timeout`
-Test exits before code inside `$timeout` executes. To fix this, `ngMock` provides a method called `timeout.flush()`. Remember to call this, if you have to work with `$timeout`.  
+### Work with `$timeout` and `$interval`
+Test exits before code inside `$timeout` or `$interval` executes. To fix this, `ngMock` provides a method called `timeout.flush()` or `$interva.flush()`. Remember to call this, if you have to work with `$timeout` or `$interva`.
 
+### Spy on Global Objects
+Spied global objects need to be restored to original value, otherwise other tests are affected. Use `setupSpyOn` function defined in test/unit/ts/init.ts
+```typescript
+let jquerySpy: IPxSpy = setupSpyOn(window, '$');
+...
+jquerySpy.unSpy();
+```
 
+### Work with Promise Returned by `$q.defer().promise`
+Call `scope.$apply()`, otherwise, test exits before then() is called.
+
+### Test Private Methods
+If this method is simple enough, it does not need to tested separately and can be tested just along with 'public' methods. Otherwise, cast service to type of `any` and call private method directly. Basically, we just need to explictly tell typescript compiler to supress type checking by coverting the type of service to 'any'.
+```typescript
+expect((<any>uilibs_Service).privateMethod()).toEqual(exptectValue);
+```
